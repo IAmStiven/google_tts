@@ -1,14 +1,16 @@
 {
-  "domain": "openai_tts",
-  "name": "OpenAI TTS",
+  "domain": "google_tts",
+  "name": "Google Gemini TTS",
   "codeowners": [
-    "@sfortis"
+    "@IAmStiven"
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/sfortis/openai_tts/",
+  "documentation": "https://github.com/IAmStiven/google_tts/",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/sfortis/openai_tts/issues",
-  "requirements": [],
-  "version": "0.3.2"
+  "issue_tracker": "https://github.com/IAmStiven/google_tts/issues",
+  "requirements": [
+    "google-genai>=1.18.0"
+  ],
+  "version": "0.2.3"
 }

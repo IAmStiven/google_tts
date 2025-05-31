@@ -1,4 +1,4 @@
-"""Custom integration for OpenAI TTS."""
+"""Custom integration for Google Gemini TTS."""
 from __future__ import annotations
 
 from homeassistant.const import Platform
