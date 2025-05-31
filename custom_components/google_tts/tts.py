@@ -21,7 +21,7 @@ from .const import (
     CONF_SPEED,
     CONF_VOICE,
     CONF_INSTRUCTIONS,
-    CONF_URL,
+    # CONF_URL,  # we no longer need this for Gemini, omitted in practice
     DOMAIN,
     UNIQUE_ID,
     CONF_CHIME_ENABLE,
@@ -44,7 +44,7 @@ async def async_setup_entry(
         config_entry.data[CONF_VOICE],
         config_entry.data[CONF_MODEL],
         config_entry.data.get(CONF_SPEED, 1.0),
-        config_entry.data[CONF_URL],
+        None,  # no URL needed for Gemini
     )
     async_add_entities([OpenAITTSEntity(hass, config_entry, engine)])
 
@@ -58,13 +58,13 @@ class OpenAITTSEntity(TextToSpeechEntity):
         self._config = config
         self._attr_unique_id = config.data.get(UNIQUE_ID)
         if not self._attr_unique_id:
-            self._attr_unique_id = f"{config.data.get(CONF_URL)}_{config.data.get(CONF_MODEL)}"
+            self._attr_unique_id = f"gemini_{config.data.get(CONF_MODEL)}"
         base_name = self._config.data.get(CONF_MODEL, "").upper()
-        self.entity_id = generate_entity_id("tts.openai_tts_{}", base_name.lower(), hass=hass)
+        self.entity_id = generate_entity_id("tts.gemini_tts_{}", base_name.lower(), hass=hass)
 
     @property
     def default_language(self) -> str:
-        return "en"
+        return "en-US"
 
     @property
     def supported_options(self) -> list:
@@ -79,7 +79,7 @@ class OpenAITTSEntity(TextToSpeechEntity):
         return {
             "identifiers": {(DOMAIN, self._attr_unique_id)},
             "model": self._config.data.get(CONF_MODEL),
-            "manufacturer": "OpenAI",
+            "manufacturer": "Google Gemini",
         }
 
     @property
@@ -91,10 +91,10 @@ class OpenAITTSEntity(TextToSpeechEntity):
     ) -> tuple[str, bytes] | tuple[None, None]:
         overall_start = time.monotonic()
 
-        _LOGGER.debug(" -------------------------------------------")
-        _LOGGER.debug("|  OpenAI TTS                               |")
-        _LOGGER.debug("|  https://github.com/sfortis/openai_tts    |")
-        _LOGGER.debug(" -------------------------------------------")
+        _LOGGER.debug(" ----------------------------------------------")
+        _LOGGER.debug("|  Google Gemini TTS                          |")
+        _LOGGER.debug("|  (replacing OpenAI TTS engine)               |")
+        _LOGGER.debug(" ----------------------------------------------")
 
         try:
             if len(message) > 4096:
@@ -195,16 +195,16 @@ class OpenAITTSEntity(TextToSpeechEntity):
                     os.remove(merged_output_path)
                 except Exception:
                     pass
-                return "mp3", final_audio
+                return "wav", final_audio
 
             else:
                 # Chime disabled.
                 if normalize_audio:
                     _LOGGER.debug("Normalization enabled without chime; processing TTS audio via ffmpeg.")
-                    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tts_file:
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tts_file:
                         tts_file.write(audio_content)
                         norm_input_path = tts_file.name
-                    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as out_file:
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as out_file:
                         norm_output_path = out_file.name
                     cmd = [
                         "ffmpeg",
@@ -212,10 +212,8 @@ class OpenAITTSEntity(TextToSpeechEntity):
                         "-i", norm_input_path,
                         "-ac", "1",
                         "-ar", "24000",
-                        "-b:a", "128k",
-                        "-preset", "superfast",
-                        "-threads", "4",
                         "-af", "loudnorm=I=-16:TP=-1:LRA=5",
+                        "-c:a", "pcm_s16le",
                         norm_output_path,
                     ]
                     _LOGGER.debug("Executing ffmpeg command: %s", " ".join(cmd))
@@ -229,12 +227,12 @@ class OpenAITTSEntity(TextToSpeechEntity):
                         os.remove(norm_output_path)
                     except Exception:
                         pass
-                    return "mp3", normalized_audio
+                    return "wav", normalized_audio
                 else:
                     _LOGGER.debug("Chime and normalization disabled; returning TTS MP3 audio only.")
                     overall_duration = (time.monotonic() - overall_start) * 1000
                     _LOGGER.debug("Overall TTS processing time: %.2f ms", overall_duration)
-                    return "mp3", audio_content
+                    return "wav", audio_content
 
         except CancelledError as ce:
             _LOGGER.exception("TTS task cancelled")
